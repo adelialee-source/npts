@@ -1,13 +1,19 @@
 # npts
 <Abstract>
+  
 We develop methodology and theory for the detection of a phase transition in a time-series of high-dimensional random matrices. In the model we study, at each time point $t = 1,2,\ldots$, we observe a deformed Wigner matrix $\mathbf{M}_t$, where the unobservable deformation represents a latent signal. This signal is detectable only in the supercritical regime, and our objective is to detect the transition to this regime in real time, as new matrix--valued observations arrive. Our approach is based on a partial sum process of extremal eigenvalues of $\mathbf{M}_t$, and its theoretical analysis combines state-of-the-art tools from random-matrix-theory and Gaussian approximations. The resulting detector is self-normalized, which ensures appropriate scaling for convergence and a pivotal limit, without any additional parameter estimation. Simulations show excellent performance for varying dimensions. Applications to pollution monitoring and social interactions in primates illustrate the usefulness of our approach.
 
 The method is based on the paper:
+
 Dörnemann, N., Kokoszka, P., Kutta, T., & Lee, S. (2025). Monitoring for a Phase Transition in a Time Series of Wigner Matrices. arXiv preprint arXiv:2507.04983.
 
 _______
 <Descriptions>
+  
 Thresholds_plot.R : Figure 1
+
 dependent_model.R : Figure 2 and Table 1 of finite sample performance
+
 Map_plot.R: Figure 3
+
 AQI_application.R : Figure 4 and Study in 4.2. Detection of a transition in regional particulate pollution levels
