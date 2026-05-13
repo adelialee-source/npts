@@ -1,9 +1,8 @@
 # Packages
 library(ggplot2)
-library(tidyr)
-library(dplyr)
 library(zoo)
 library(janitor)
+library(tidyverse)
 
 # Load data
 AQ_data_PM <- read.csv('daily_88101_2020.csv')
@@ -13,16 +12,17 @@ AQ_data_PM_train3 <- read.csv('daily_88101_2017.csv')
 AQ_data_PM_train4 <- read.csv('daily_88101_2016.csv')
 AQ_data_PM_train5 <- read.csv('daily_88101_2015.csv')
 
+# Step 1: Choose observations in Colorado and arrange for time (day)
 step_1 <- function(data) {
   data %>%
-    subset(State.Code == 8 & Method.Code != 236 & Method.Code != 238) %>%
+    filter(State.Code == 8 & Method.Code != 236 & Method.Code != 238) %>%
     group_by(County.Code, Date.Local) %>%
-    select(County.Code, Date.Local, Arithmetic.Mean) %>%
     mutate(Row = row_number()) %>%
+    select(County.Code, Date.Local, Arithmetic.Mean, Row) %>%
+    ungroup() %>%
     pivot_wider(names_from = Row, values_from = Arithmetic.Mean) %>%
-    rename_with(~ paste0("Obs_", .), starts_with("1") | starts_with("2") | starts_with("3") | starts_with("4") | starts_with("5") | starts_with("6") | starts_with("7") | starts_with("8") | starts_with("9")) %>%
-    arrange(County.Code, Date.Local) %>%
-    ungroup()
+    rename_with(~ paste0("Obs_", .), matches("^[0-9]+$")) %>%
+    arrange(County.Code, Date.Local)
 }
 
 # Step 2: Identify the longest row in each County
@@ -110,6 +110,7 @@ redesign <- function(data){
   return(Test_3)
 }
 
+# Reconstruct datasets
 redesign_2020 <- redesign(AQ_data_PM)
 redesign_2019 <- redesign(AQ_data_PM_train)
 redesign_2018 <- redesign(AQ_data_PM_train2)
@@ -127,7 +128,7 @@ redesign_2015 <- cbind(redesign_2015, row_mean_2015, row_mean_2015, row_mean_201
 redesign_2015 <- redesign_2015[,1:41]
 
 # Erase 2/29 data to consistency (2016)
-k <- which(redesign_2016$current_data == '2016-02-29') #243
+k <- which(redesign_2016$current_data == '2016-02-29')
 redesign_2016 <- redesign_2016[-k,]
 redesign_2016 <- redesign_2016[, 1:41]
 
@@ -155,7 +156,6 @@ M_t0 <- rbind(train, running)
 M_t0 <- as.matrix(M_t0)
 
 # Initial settings
-Date <- redesign_2020[-k,1]
 training_m <- 483
 total_T <- 730 - training_m
 thres <- 5.85
@@ -191,41 +191,43 @@ for (t in 1:(training_m + total_T)) {
   }
 }
 
+Date <- as.Date(redesign_2020[, 1])
+date_dummy <- which(Date == as.Date('2020-02-29'))  
+Date_con <- Date[-date_dummy] # erase Feb 29
 
-for (t in 1: (training_m + total_T)){
-  if(Gamma_k[t, 1] >= thres){
-    print(Date[t - 365])
-    print(t - 365)
+detection_t <- NA
+threshold_crossing <- NA
+
+for (t in 1:(training_m + total_T)) {
+  if (Gamma_k[t, 1] >= thres) {
+    threshold_crossing <- Date_con[idx - 365]          
+    detection_t <- idx - 365
     break
   }
 }
 
-Date <- format(Date, format = "%Y - %m-%d")
-Date <- as.Date(Date)
-data <- data.frame(y = Gamma_k[366:730,1], x = Date)
-threshold_crossing <- data$x[t - 365]
-monitoring <- data$x[training_m - 366]
-real <- data$x[t - 365 - 7]
+data <- data.frame(y = Gamma_k[366:730, 1], x = Date_con)
+monitoring <- Date_con[training_m - 365]
+real <- as.Date("2020-08-11") 
 
 # Plot
 ggplot(data, aes(x = x, y = y)) +
   geom_point(aes(color = ifelse(y > thres, '#ff7c43', '#2f4b7c')), size = 1) +
-  # Add a horizontal line at the threshold
   geom_hline(yintercept = thres, linetype = "dashed", color = "#12436D") +
-  # Add a vertical line at the threshold crossing point
   geom_vline(xintercept = threshold_crossing, linetype = "dashed", color = "#12436D") +
   geom_vline(xintercept = monitoring, linetype = "dashed", color = "#12436D") +
   geom_vline(xintercept = real, linetype = "solid", color = "#12436D") +
-  annotate("text", x = threshold_crossing, y = thres, label = paste("Detection on", threshold_crossing), 
+  annotate("text", x = threshold_crossing, y = thres,
+           label = paste("Detection on", threshold_crossing),
            vjust = 1.6, hjust = -0.1, color = "#12436D") +
-  annotate("text", x = monitoring, y = 0, label = paste("Training until", monitoring), 
+  annotate("text", x = monitoring, y = 0,
+           label = paste("Training until", monitoring),
            vjust = -0.6, hjust = 1.1, color = "#12436D") +
-  scale_color_identity() + 
+  scale_color_identity() +
   labs(x = "Day", y = "Test statistic") +
   scale_x_date(
-    breaks = seq.Date(from = as.Date('2020-01-01'), to = as.Date('2020-12-31'), by = 'month'),  
-    # 1-month interval
+    breaks = seq.Date(from = as.Date('2020-01-01'),
+                      to   = as.Date('2020-12-31'), by = 'month'),
     labels = month.abb) +
-  theme(axis.text.x = element_text(angle = 55, hjust = 1)) +
-  theme_classic() 
-
+  theme_classic() +                                    
+  theme(axis.text.x = element_text(angle = 55, hjust = 1)) 
