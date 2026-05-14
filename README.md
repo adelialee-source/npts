@@ -16,4 +16,5 @@ dependent_model.R : Figure 2 and Table 1 of finite sample performance
 
 Map_plot.R: Figure 3
 
-AQI_application.R : Figure 4 and Study in 4.2. Detection of a transition in regional particulate pollution levels
+AQI_application.R : Figure 4 and Study in 4.2. Detection of a transition in regional particulate pollution levels. 
+You can find the raw datasets from https://www.epa.gov/outdoor-air-quality-data/download-daily-data
