@@ -66,12 +66,12 @@ step_2 <- function(data){
   }
   for(j in 1:nrow(data)){
     max <- data$max[j]
-      for(i in 3:(max + 2)){
-        if (is.na(data[j, i])) {
-          data[j, i] <- mean(as.numeric(data[j, 3:(i-1)]), na.rm = TRUE)
-        }
+    for(i in 3:(max + 2)){
+      if (is.na(data[j, i])) {
+        data[j, i] <- mean(as.numeric(data[j, 3:(i-1)]), na.rm = TRUE)
       }
     }
+  }
   return(data)
 }
 
@@ -98,9 +98,9 @@ step_3 <- function(data){
     x[is.na(x)] <- mean(x, na.rm = TRUE)
     return(x)
   })
+  
   return(clean_data)
 }
-
 
 redesign <- function(data){
   Test_1 <- step_1(data)
@@ -128,8 +128,8 @@ redesign_2015 <- cbind(redesign_2015, row_mean_2015, row_mean_2015, row_mean_201
 redesign_2015 <- redesign_2015[,1:41]
 
 # Erase 2/29 data to consistency (2016)
-k <- which(redesign_2016$current_data == '2016-02-29')
-redesign_2016 <- redesign_2016[-k,]
+dummy_t <- which(redesign_2016$current_data == '2016-02-29')
+redesign_2016 <- redesign_2016[-dummy_t,]
 redesign_2016 <- redesign_2016[, 1:41]
 
 # Format training data
@@ -146,10 +146,11 @@ days_avg <- training %>%
 
 # Smoothing data
 window_size <- 30
-days_avg[,-1] <- zoo::rollmean(days_avg[,-1], k = window_size, fill = 8, align = "center")
+days_avg[,-1] <- zoo::rollmean(days_avg[,-1], k = window_size, fill = 'extend', align = "center")
 
 # Time series
-running <- redesign_2020[-k,-1] - days_avg[,-1]
+dummy_t_2 <- which(redesign_2020$current_data == '2020-02-29')
+running <- redesign_2020[-dummy_t_2,-1] - days_avg[,-1]
 train <- redesign_2019[,-1] - days_avg[,-1]
 names(train) <- names(running)
 M_t0 <- rbind(train, running)
@@ -198,17 +199,17 @@ Date_con <- Date[-date_dummy] # erase Feb 29
 detection_t <- NA
 threshold_crossing <- NA
 
-for (t in 1:(training_m + total_T)) {
-  if (Gamma_k[t, 1] >= thres) {
-    threshold_crossing <- Date_con[idx - 365]          
-    detection_t <- idx - 365
-    break
-  }
+for (t in (training_m + 1):(training_m + total_T)) {
+    if (Gamma_k[t, 1] >= thres) {
+        threshold_crossing <- Date_con[t - 365]
+        detection_t <- t - 365
+        break
+    }
 }
 
 data <- data.frame(y = Gamma_k[366:730, 1], x = Date_con)
 monitoring <- Date_con[training_m - 365]
-real <- as.Date("2020-08-11") 
+real <- as.Date("2020-08-13") 
 
 # Plot
 ggplot(data, aes(x = x, y = y)) +
