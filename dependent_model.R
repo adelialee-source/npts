@@ -79,31 +79,32 @@ parallel_simul_depend <- function(simul, n, m, v_t,
  
 # efficiency functions
 power_curve <- function(simul, list_gap, list_k, m, n, phi_rng = phi_range,
-                        dist = c("unif", "beta"), thr90, thr95) {
+                        dist = c("unif", "beta"), thr90, thr95)) {
   dist <- match.arg(dist)
+
   s_t0 <- 0.95 * matrix(draw_Z(1000 * simul_n, dist), nrow = 1000, ncol = simul_n)
- 
+
   out <- numeric(0)
   for (delta in list_gap) for (k in list_k) {
     nrow1 <- simul_T - k
     s_t1 <- 1.05 + delta * matrix(draw_Z(nrow1 * simul_n, dist), nrow = nrow1)
-    s_t  <- rbind(s_t0[1:(m + k), , drop = FALSE], s_t1)   # change at t = m+k*+1
-    out  <- c(out, parallel_simul_depend(simul, n, m, s_t, phi_rng[1], phi_rng[2], thr90, thr95))
+    s_t  <- rbind(s_t0[1:(m + k), , drop = FALSE], s_t1)
+    out  <- c(out, parallel_simul_depend(simul, n, m, s_t, phi_rng[1], phi_rng[2]))
   }
   out
 }
- 
+
 type1 <- function(simul, list_size, list_m, phi_rng = phi_range,
-                  dist = c("unif", "beta"), thr90, thr95) {
+                  dist = c("unif", "beta"), thr90, thr95)) {
   dist <- match.arg(dist)
   s_t0 <- 0.95 * matrix(draw_Z(1000 * simul_n, dist), nrow = 1000, ncol = simul_n)
- 
+
   out <- numeric(0)
-  for (m in list_m) for (size in list_size)     
-    out <- c(out, parallel_simul_depend(simul, size, m, s_t0, phi_rng[1], phi_rng[2], thr90, thr95))
+  for (m in list_m) for (size in list_size)      
+    out <- c(out, parallel_simul_depend(simul, size, m, s_t0, phi_rng[1], phi_rng[2]))
   out
 }
- 
+
 # Setting parameters
 simul_T      <- 500
 simul_n      <- 1000
