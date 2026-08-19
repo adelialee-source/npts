@@ -1,10 +1,7 @@
-# Packages
 library(ggplot2)
-library(mgcv)         
+library(mgcv)
 library(parallel)
  
-# Functions
-## form Wigner matrix
 Wigner_matrix <- function(n) {
   W <- matrix(rnorm(n * n), n, n)
   W[lower.tri(W)] <- t(W)[lower.tri(W)]
@@ -30,10 +27,9 @@ generate_wigner <- function(total_time, n, Phi) {
 }
  
 Adj_matrix <- function(s_t, x_t, W_t, n) s_t * outer(x_t, x_t) + W_t / sqrt(n)
-
+ 
 draw_Z <- function(n, dist) if (dist == "unif") runif(n) else rbeta(n, 2, 4)
  
-## Main simulation function
 parallel_simul_depend <- function(simul, n, m, v_t,
                                   phi_lo = phi_range[1], phi_hi = phi_range[2],
                                   Tmax = simul_T,
@@ -77,39 +73,36 @@ parallel_simul_depend <- function(simul, n, m, v_t,
   c(k_hat_90, k_hat_95)
 }
  
-# efficiency functions
 power_curve <- function(simul, list_gap, list_k, m, n, phi_rng = phi_range,
-                        dist = c("unif", "beta"), thr90, thr95)) {
+                        dist = c("unif", "beta"), thr90, thr95) {
   dist <- match.arg(dist)
-
   s_t0 <- 0.95 * matrix(draw_Z(1000 * simul_n, dist), nrow = 1000, ncol = simul_n)
-
   out <- numeric(0)
   for (delta in list_gap) for (k in list_k) {
     nrow1 <- simul_T - k
     s_t1 <- 1.05 + delta * matrix(draw_Z(nrow1 * simul_n, dist), nrow = nrow1)
     s_t  <- rbind(s_t0[1:(m + k), , drop = FALSE], s_t1)
-    out  <- c(out, parallel_simul_depend(simul, n, m, s_t, phi_rng[1], phi_rng[2]))
+    out  <- c(out, parallel_simul_depend(simul, n, m, s_t, phi_rng[1], phi_rng[2],
+                                         thr90 = thr90, thr95 = thr95))
   }
   out
 }
-
+ 
 type1 <- function(simul, list_size, list_m, phi_rng = phi_range,
-                  dist = c("unif", "beta"), thr90, thr95)) {
+                  dist = c("unif", "beta"), thr90, thr95) {
   dist <- match.arg(dist)
   s_t0 <- 0.95 * matrix(draw_Z(1000 * simul_n, dist), nrow = 1000, ncol = simul_n)
-
   out <- numeric(0)
-  for (m in list_m) for (size in list_size)      
-    out <- c(out, parallel_simul_depend(simul, size, m, s_t0, phi_rng[1], phi_rng[2]))
+  for (m in list_m) for (size in list_size)
+    out <- c(out, parallel_simul_depend(simul, size, m, s_t0, phi_rng[1], phi_rng[2],
+                                        thr90 = thr90, thr95 = thr95))
   out
 }
-
-# Setting parameters
+ 
 simul_T      <- 500
-simul_n      <- 1000
+simul_n      <- 2000
 simul_m      <- 400
-phi_range    <- c(0, 0.9)   
+phi_range    <- c(0, 0.9)
 gap_list     <- seq(0.02, 3, by = 0.07)
 k_list       <- c(350, 450)
 simul_m_list <- c(300, 350, 400, 450, 500)
@@ -117,7 +110,6 @@ size_list    <- c(10, 25, 50, 100)
 thres_95     <- 5.85
 thres_90     <- 4.57
  
-# Storage
 mk_power_df <- function() data.frame(
   gap = rep(gap_list, each = 2),
   k   = rep(c("350", "450"), length(gap_list)),
@@ -128,7 +120,6 @@ mk_type1_df <- function() data.frame(
   size = rep(size_list, length(simul_m_list)),
   err_95 = NA_real_, err_90 = NA_real_)
  
-# parallel
 WORKERS <- max(1L, detectCores() - 3L)
  
 jobs <- list(
@@ -139,7 +130,7 @@ jobs <- list(
   type1_unif    = function(x) type1(x, size_list, simul_m_list, phi_range, "unif", thres_90, thres_95),
   type1_beta    = function(x) type1(x, size_list, simul_m_list, phi_range, "beta", thres_90, thres_95)
 )
-
+ 
 run_job <- function(cl, job_idx, name, f, reps = simul_n) {
   force(f)
   res <- do.call(rbind, parLapply(cl, seq_len(reps), f))
@@ -156,8 +147,7 @@ run_all <- function() {
                       "simul_T", "simul_n", "simul_m", "phi_range",
                       "gap_list", "k_list", "size_list", "simul_m_list",
                       "thres_90", "thres_95"))
-  clusterSetRNGStream(cl, 20260812)   
-
+  clusterSetRNGStream(cl, 20260812)
   res <- list()
   for (j in seq_along(jobs)) {
     nm <- names(jobs)[j]
@@ -168,7 +158,6 @@ run_all <- function() {
  
 results <- run_all()
  
-## calculation
 estimate_func <- function(df, dta, col90 = 4L, col95 = 3L) {
   stopifnot(ncol(dta) == 2L * nrow(df))
   rate <- colMeans(dta < simul_T)
@@ -177,7 +166,6 @@ estimate_func <- function(df, dta, col90 = 4L, col95 = 3L) {
   df
 }
  
-# Storing
 df_power_unif_25 <- estimate_func(mk_power_df(), results$power_unif_25)
 df_power_unif_50 <- estimate_func(mk_power_df(), results$power_unif_50)
 df_power_beta_25 <- estimate_func(mk_power_df(), results$power_beta_25)
@@ -185,7 +173,6 @@ df_power_beta_50 <- estimate_func(mk_power_df(), results$power_beta_50)
 df_type1_unif    <- estimate_func(mk_type1_df(), results$type1_unif)
 df_type1_beta    <- estimate_func(mk_type1_df(), results$type1_beta)
  
-# Plot for power
 plot_making_func <- function(df){
   ggplot(df, aes(x = gap, color = as.factor(k))) +
     stat_smooth(aes(y = power_95), method = "gam", formula = y ~ s(x, bs = "cs"),
